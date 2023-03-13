@@ -337,9 +337,9 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         for (eaIndex, eventAssignment) in enumerate(event[:getListOfEventAssignments]())
             variableName = eventAssignment[:getVariable]()
             # if the variable in the event is not set as a variable, make it so and remove it as a parameter or constant
-            if variableName in keys(parameterDict)
-                modelDict["nonConstantParameters"][variableName] = parameterDict[variableName]
-                delete!(parameterDict, variableName)
+            if variableName in keys(modelDict["parameters"])
+                modelDict["nonConstantParameters"][variableName] = modelDict["parameters"][variableName]
+                delete!(modelDict["parameters"], variableName)
             end
 
             eventMath = eventAssignment[:getMath]()
