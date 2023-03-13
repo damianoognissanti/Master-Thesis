@@ -161,7 +161,7 @@ function asTrigger(triggerFormula)
         parts[1] = replaceWholeWord(parts[1], "time", "t")
     end
     expression = "[" * parts[1] * " ~ " * parts[2] * "]"
-    return expression
+    return expression, parts[1], parts[2]
 end
 
 
@@ -325,16 +325,17 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
     ### Define events
     stringOfEvents = ""
-    for (eIndex, event) in enumerate(model[:getListOfEvents]())
+    timeTriggeredEvents = Dict()
+    for event in model[:getListOfEvents]()
 
         println("Model has an event :o :o")
 
         eventName = event[:getName]()
         trigger = event[:getTrigger]()
         triggerMath = trigger[:getMath]()
-        triggerFormula = asTrigger(libsbml[:formulaToString](triggerMath))
-        eventAsString = ""
-        for (eaIndex, eventAssignment) in enumerate(event[:getListOfEventAssignments]())
+        triggerFormula, triggerVariable, triggerValue = asTrigger(libsbml[:formulaToString](triggerMath))
+        eventAsString = "["
+        for eventAssignment in event[:getListOfEventAssignments]()
             variableName = eventAssignment[:getVariable]()
             # if the variable in the event is not set as a variable, make it so and remove it as a parameter or constant
             if variableName in keys(modelDict["parameters"])
@@ -344,21 +345,24 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
             eventMath = eventAssignment[:getMath]()
             eventMathAsString = libsbml[:formulaToString](eventMath)
-
-            # Add the event 
-            if eaIndex == 1
-                eventAsString = "[" * variableName * " ~ " * eventMathAsString
+            # If events are triggered by time, do not add them to continuous events, but rather
+            # replace the variables affected with ifelse-statements that get caught further down and 
+            # rewritten into bools
+            if triggerVariable == "t"
+                timeTriggeredEvents[variableName] = "ifelse(" * triggerVariable * " == " * triggerValue * ", " * eventMathAsString * ", " * variableName * ")"
             else
-                eventAsString = eventAsString * ", " * variableName * " ~ " * eventMathAsString
+                # Add the event 
+                eventAsString *= variableName * " ~ " * eventMathAsString * ", "
             end
         end
-        eventAsString = eventAsString * "]"
-        fullEvent = triggerFormula * " => " * eventAsString
-        if eIndex == 1
-            stringOfEvents = fullEvent
-        else
-            stringOfEvents = stringOfEvents * ", " * fullEvent
+        if eventAsString != "[" 
+            eventAsString = eventAsString[1:end-2] * "]"
+            fullEvent = triggerFormula * " => " * eventAsString
+            stringOfEvents *= fullEvent * ", "
         end
+    end
+    if stringOfEvents != "" 
+        stringOfEvents = stringOfEvents[1:end-2]
     end
 
     # Extract model rules. Each rule-type is processed differently.
@@ -408,6 +412,15 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         for (pName, pStoich) in products
             pComp = model[:getSpecies](pName)[:getCompartment]()
             modelDict["derivatives"][pName] = modelDict["derivatives"][pName] * "+" * string(pStoich) * " * ( 1 /" * pComp * " ) * (" * formula * ")"
+        end
+    end
+
+    for stateKey in keys(modelDict["derivatives"])
+        oldString = modelDict["derivatives"][stateKey]
+        tildePos = findfirst('~', oldString)
+        for eventKey in keys(timeTriggeredEvents)
+            newString = replaceWholeWord(oldString[tildePos+1:end],eventKey,timeTriggeredEvents[eventKey])
+            modelDict["derivatives"][stateKey] = oldString[1:tildePos] * newString
         end
     end
 
