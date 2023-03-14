@@ -66,7 +66,7 @@ function createCallback(callbackName::String,
     _conditionFormula = SBMLDict["boolVariables"][callbackName][1]
     hasModelStates = conditionHasStates(_conditionFormula, modelStateNames)
     discreteEvent = hasModelStates == true ? false : true
-        
+    
     # Replace any state or parameter with their corresponding index in the ODE system to be comaptible with event 
     # syntax 
     for i in eachindex(modelStateNames)
@@ -151,6 +151,7 @@ function createFuncionForTstops(SBMLDict::Dict,
         variablesSymbolic = eval(Meta.parse(variablesStr))
 
         # Note - below order counts (e.g having < first results in ~= incase what actually stands is <=)
+        conditionFormula = replace(conditionFormula, "==" => "~")
         conditionFormula = replace(conditionFormula, "<=" => "~")
         conditionFormula = replace(conditionFormula, ">=" => "~")
         conditionFormula = replace(conditionFormula, "<" => "~")

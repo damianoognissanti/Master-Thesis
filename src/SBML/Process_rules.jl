@@ -120,6 +120,9 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
             else
                 splitBy = ">"
             end
+        elseif isnothing(iGt) && isnothing(iLt)
+            signUsed = "eq"
+            splitBy = "=="
         else
             println("Error : Did not find criteria to split ifelse on")
         end
@@ -137,14 +140,14 @@ function reWriteStringWithIfelseToBool(formulaWithIfelse::String, modelDict::Dic
             signTime = checkSignTime(string(lhsRule))
             if (signTime == 1 && signUsed == "lt") || (signTime == -1 && signUsed == "gt")
                 sideActivatedWithTime = "right"
-            elseif (signTime == 1 && signUsed == "gt") || (signTime == -1 && signUsed == "lt")
+            elseif (signTime == 1 && signUsed == "gt") || (signTime == -1 && signUsed == "lt") || (signUsed == "eq")
                 sideActivatedWithTime = "left"
             end
         elseif timeRight == true
             signTime = checkSignTime(string(rhsRule))
             if (signTime == 1 && signUsed == "lt") || (signTime == -1 && signUsed == "gt")
                 sideActivatedWithTime = "left"
-            elseif (signTime == 1 && signUsed == "gt") || (signTime == -1 && signUsed == "lt")
+            elseif (signTime == 1 && signUsed == "gt") || (signTime == -1 && signUsed == "lt") || (signUsed == "eq")
                 sideActivatedWithTime = "right"
             end
         end

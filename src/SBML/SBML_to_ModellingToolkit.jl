@@ -325,7 +325,6 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
 
     ### Define events
     stringOfEvents = ""
-    timeTriggeredEvents = Dict()
     for event in model[:getListOfEvents]()
 
         println("Model has an event :o :o")
@@ -349,7 +348,11 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
             # replace the variables affected with ifelse-statements that get caught further down and 
             # rewritten into bools
             if triggerVariable == "t"
-                timeTriggeredEvents[variableName] = "ifelse(" * triggerVariable * " == " * triggerValue * ", " * eventMathAsString * ", " * variableName * ")"
+                if haskey(modelDict["inputFunctions"], variableName * "_event")
+                    modelDict["inputFunctions"][variableName * "_event"] *= " + ifelse(" * triggerVariable * " == " * triggerValue * ", " * eventMathAsString * ", " * variableName * ")"
+                else
+                    modelDict["inputFunctions"][variableName * "_event"] = variableName * "_event ~ ifelse(" * triggerVariable * " == " * triggerValue * ", " * eventMathAsString * ", " * variableName * ")"
+                end
             else
                 # Add the event 
                 eventAsString *= variableName * " ~ " * eventMathAsString * ", "
@@ -412,15 +415,6 @@ function buildODEModelDictionary(libsbml, model, ifElseToEvent::Bool)
         for (pName, pStoich) in products
             pComp = model[:getSpecies](pName)[:getCompartment]()
             modelDict["derivatives"][pName] = modelDict["derivatives"][pName] * "+" * string(pStoich) * " * ( 1 /" * pComp * " ) * (" * formula * ")"
-        end
-    end
-
-    for stateKey in keys(modelDict["derivatives"])
-        oldString = modelDict["derivatives"][stateKey]
-        tildePos = findfirst('~', oldString)
-        for eventKey in keys(timeTriggeredEvents)
-            newString = replaceWholeWord(oldString[tildePos+1:end],eventKey,timeTriggeredEvents[eventKey])
-            modelDict["derivatives"][stateKey] = oldString[1:tildePos] * newString
         end
     end
 
